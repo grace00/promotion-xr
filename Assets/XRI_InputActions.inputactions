@@ -1,0 +1,74 @@
+{
+    "name": "XRI_InputActions",
+    "maps": [
+        {
+            "name": "XRInteractions",
+            "id": "682c193f-9c7e-4618-8715-5da293c40dc5",
+            "actions": [
+                {
+                    "name": "Select",
+                    "type": "Button",
+                    "id": "670d8a69-67a5-4b08-8cb2-62f983e44718",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Activate",
+                    "type": "Button",
+                    "id": "b395edfc-c2b1-4497-8c8e-aa89f3ecc148",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "UI",
+                    "type": "Button",
+                    "id": "31917cc3-3b7a-4b88-8600-1f5c47eadb97",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "c31fc80e-ed2f-4f4f-befc-de97b9bfcc06",
+                    "path": "<XRController>{RightHand}/{PrimaryTrigger}",
+                    "interactions": "Press",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Select",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "90b42f70-3060-48d2-9f98-8ee0a47a7163",
+                    "path": "<XRController>{RightHand}/{GripButton}",
+                    "interactions": "Press",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Activate",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "6ea50a90-786a-4cbc-93fa-892158d05e2a",
+                    "path": "<XRController>{RightHand}/{PrimaryButton}",
+                    "interactions": "Press",
+                    "processors": "",
+                    "groups": "",
+                    "action": "UI",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}
