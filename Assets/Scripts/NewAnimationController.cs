@@ -3,27 +3,42 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.EventSystems;
 
 public class NewAnimationController : MonoBehaviour
 {
     public Animator animator; // Reference to the Animator component
     public Slider scrubSlider; // Reference to the Scrubbing Slider
     public Button playPauseButton; // Reference to the Play/Pause button
-    public TMP_Text buttonText; // Reference to the TextMeshPro text component
-    public TMP_FontAsset fontAwesome; // Reference to the FontAwesome TMP_FontAsset
+    public Image playPauseImage; // Reference to the Image component for the play/pause button
+    public Sprite playSprite; // Sprite for the play state
+    public Sprite pauseSprite; // Sprite for the pause state
     public Button speedButtonNormal; // Reference to the Normal speed button
     public Button speedButtonSlow; // Reference to the Slow speed button
     public Button speedButtonSlowest; // Reference to the Slowest speed button
-    public Color selectedColor = Color.green; // Color to indicate the selected button
-    public Color defaultColor = Color.black; // Default color of the button text
     public float normalSpeed = 1.0f; // Speed for Normal
-    public float slowSpeed = 0.5f; // Speed for Slow
-    public float slowestSpeed = 0.25f; // Speed for Slowest
-    private float animationLength; // Length of the animation
+    public float slowSpeed = 0.25f; // Speed for Slow
+    public float slowestSpeed = 0.1f; // Speed for Slowest
+    public float animationLength; // Length of the animation
     private bool isScrubbing = false; // To track if the user is scrubbing
     private bool isPlaying = false; // To track if the animation is playing
-    private float currentSpeed = 1.0f; // Store the current speed
+    private bool hasPlayedOnce = false; // To track if the animation has played once
+    private float currentSpeed; // Store the current speed
     private int animationStateHash; // Hash of the animation state
+
+    // Reference to the "Good Job!" text
+    public GameObject goodJobText;
+
+    // Reference to the Countdown Text
+    public TMP_Text countdownText;
+
+    // References to the bookmark indicators
+    public GameObject backswingStartIndicator;
+    public GameObject downswingStartIndicator;
+    public GameObject followThroughIndicator;
+    public GameObject finishIndicator;
+
+    private Coroutine countdownCoroutine;
 
     void Start()
     {
@@ -36,20 +51,35 @@ public class NewAnimationController : MonoBehaviour
         speedButtonNormal.onClick.AddListener(() => SetSpeed(normalSpeed));
         speedButtonSlow.onClick.AddListener(() => SetSpeed(slowSpeed));
         speedButtonSlowest.onClick.AddListener(() => SetSpeed(slowestSpeed));
-        UpdateButtonText(); // Initialize button text
-        SetSpeed(normalSpeed); // Set default speed to normal
+        UpdateButtonSprite(); // Initialize button sprite
 
-        // Set default colors for speed buttons
-        SetDefaultButtonColors();
+        // Set the default speed to slowest
+        SetSpeed(slowestSpeed); // Set the initial speed to slowest
+        UpdateSpeedButtons(slowestSpeed); // Highlight the slowest speed button
 
         // Pause the animation at start and set it to the first frame
         animator.speed = 0;
         isPlaying = false;
         animator.Play(animationStateHash, 0, 0);
-        Debug.Log("Start called, initialized with isPlaying: " + isPlaying);
 
         // Set the animation to not loop
         animator.runtimeAnimatorController.animationClips[0].wrapMode = WrapMode.Once;
+
+        // Position and add listeners to bookmark indicators
+        PositionIndicator(backswingStartIndicator, 0f);
+        PositionIndicator(downswingStartIndicator, 0.46f);
+        PositionIndicator(followThroughIndicator, 0.625f);
+        PositionIndicator(finishIndicator, 0.99f);
+
+        // Add EventTrigger components for click handling
+        AddEventTrigger(backswingStartIndicator, JumpToBackswingStart);
+        AddEventTrigger(downswingStartIndicator, JumpToDownswingStart);
+        AddEventTrigger(followThroughIndicator, JumpToFollowThrough);
+        AddEventTrigger(finishIndicator, JumpToFinish);
+
+        // Ensure the "Good Job!" text and countdown text are initially hidden
+        goodJobText.SetActive(false);
+        countdownText.gameObject.SetActive(false);
     }
 
     void Update()
@@ -64,55 +94,87 @@ public class NewAnimationController : MonoBehaviour
         {
             PauseAnimation();
             scrubSlider.value = animationLength; // Ensure the scrubber is set to the end
-            UpdateButtonText(); // Update button text to "Play"
+            UpdateButtonSprite(); // Update button sprite to "Play"
+            if (!hasPlayedOnce)
+            {
+                hasPlayedOnce = true;
+                ShowGoodJobText();
+            }
         }
     }
 
     public void TogglePlayPause()
     {
-        Debug.Log("TogglePlayPause called, isPlaying: " + isPlaying);
         if (isPlaying)
         {
             PauseAnimation();
+            if (countdownCoroutine != null)
+            {
+                StopCoroutine(countdownCoroutine);
+                countdownCoroutine = null;
+                countdownText.gameObject.SetActive(false);
+            }
         }
         else
         {
-            if (scrubSlider.value >= animationLength)
+            if (countdownCoroutine == null)
             {
-                SetAnimationTime(0); // Restart the animation if it's at the end
+                if (scrubSlider.value >= animationLength)
+                {
+                    SetAnimationTime(0); // Restart the animation if it's at the end
+                }
+                countdownCoroutine = StartCoroutine(StartAnimationWithCountdown());
             }
-            PlayAnimation();
         }
-        UpdateButtonText(); // Update button text based on the new state
+        UpdateButtonSprite(); // Update button sprite based on the new state
     }
+
+    private IEnumerator StartAnimationWithCountdown()
+    {
+        isPlaying = true;
+        animator.speed = 0; // Pause the animation during the countdown
+        UpdateButtonSprite(); // Show the pause button during countdown
+        countdownText.gameObject.SetActive(true);
+        for (int i = 3; i > 0; i--)
+        {
+            countdownText.text = i.ToString();
+            yield return new WaitForSeconds(0);
+            Debug.Log("waiting 3 secs, is playing?: " + isPlaying);
+
+        }
+        countdownText.gameObject.SetActive(false);
+        Debug.Log("countdown done");
+        PlayAnimation();
+        countdownCoroutine = null;
+    }
+
 
     public void PlayAnimation()
     {
-        Debug.Log("PlayAnimation called");
-        isPlaying = true;
+         Debug.Log("play animate");
         animator.speed = currentSpeed; // Play at the current speed
-        Debug.Log("Animation is now playing at speed: " + currentSpeed);
+        UpdateButtonSprite();
     }
 
     public void PauseAnimation()
     {
-        Debug.Log("PauseAnimation called");
         isPlaying = false;
         animator.speed = 0; // Pause the animation
-        Debug.Log("Animation is now paused");
+        UpdateButtonSprite();
     }
 
     public void OnScrubSliderChanged(float value)
     {
-        Debug.Log("OnScrubSliderChanged called with value: " + value);
-        isScrubbing = true;
-        SetAnimationTime(value);
-        isScrubbing = false;
+        if (!isScrubbing)
+        {
+            isScrubbing = true;
+            SetAnimationTime(value);
+            isScrubbing = false;
+        }
     }
 
     public void SetAnimationTime(float newTime)
     {
-        Debug.Log("SetAnimationTime called with newTime: " + newTime);
         animator.Play(animationStateHash, 0, newTime / animationLength);
         animator.Update(0); // Ensure the animator updates immediately
         if (isPlaying) // If playing, continue playing after scrubbing
@@ -127,7 +189,6 @@ public class NewAnimationController : MonoBehaviour
 
     public void SetSpeed(float speed)
     {
-        Debug.Log("SetSpeed called with speed: " + speed);
         currentSpeed = speed; // Store the current speed
         if (isPlaying)
         {
@@ -138,46 +199,98 @@ public class NewAnimationController : MonoBehaviour
 
     private void UpdateSpeedButtons(float selectedSpeed)
     {
-        Debug.Log("UpdateSpeedButtons called with selectedSpeed: " + selectedSpeed);
-        // Reset all buttons to default color
-        speedButtonNormal.GetComponentInChildren<TMP_Text>().color = defaultColor;
-        speedButtonSlow.GetComponentInChildren<TMP_Text>().color = defaultColor;
-        speedButtonSlowest.GetComponentInChildren<TMP_Text>().color = defaultColor;
+        // Reset all buttons to their default colors
+        ResetButtonUI(speedButtonNormal);
+        ResetButtonUI(speedButtonSlow);
+        ResetButtonUI(speedButtonSlowest);
 
-        // Set selected button to selected color
+        // Set selected button to selected background and font colors
         if (selectedSpeed == normalSpeed)
         {
-            speedButtonNormal.GetComponentInChildren<TMP_Text>().color = selectedColor;
+            SetButtonUI(speedButtonNormal);
         }
         else if (selectedSpeed == slowSpeed)
         {
-            speedButtonSlow.GetComponentInChildren<TMP_Text>().color = selectedColor;
+            SetButtonUI(speedButtonSlow);
         }
         else if (selectedSpeed == slowestSpeed)
         {
-            speedButtonSlowest.GetComponentInChildren<TMP_Text>().color = selectedColor;
+            SetButtonUI(speedButtonSlowest);
         }
     }
 
-    private void SetDefaultButtonColors()
+    private void SetButtonUI(Button button)
     {
-        speedButtonNormal.GetComponentInChildren<TMP_Text>().color = defaultColor;
-        speedButtonSlow.GetComponentInChildren<TMP_Text>().color = defaultColor;
-        speedButtonSlowest.GetComponentInChildren<TMP_Text>().color = defaultColor;
+        button.GetComponent<Image>().color = new Color32(212, 192, 255, 255); // #D4C0FF
+        button.GetComponentInChildren<TMP_Text>().color = new Color32(54, 18, 131, 255);
     }
 
-    private void UpdateButtonText()
+    private void ResetButtonUI(Button button)
     {
-        Debug.Log("UpdateButtonText called, isPlaying: " + isPlaying);
-        buttonText.font = fontAwesome; // Use FontAwesome font asset
+        button.GetComponent<Image>().color = new Color32(95, 61, 232, 255); // #5F3DE8
+        button.GetComponentInChildren<TMP_Text>().color = Color.white;
+    }
+
+    private void UpdateButtonSprite()
+    {
         if (isPlaying)
         {
-            buttonText.text = "Pause"; // Pause icon
+            playPauseImage.sprite = pauseSprite;
         }
         else
         {
-            buttonText.text = "Play"; // Play icon
+            playPauseImage.sprite = playSprite;
         }
-        Debug.Log("Button text updated to: " + buttonText.text);
+    }
+
+    private void PositionIndicator(GameObject indicator, float normalizedTime)
+    {
+        float scrubWidth = scrubSlider.GetComponent<RectTransform>().rect.width;
+        float xPos = scrubWidth * normalizedTime - scrubWidth / 2 + 1;
+        RectTransform rectTransform = indicator.GetComponent<RectTransform>();
+        rectTransform.anchoredPosition = new Vector2(xPos, rectTransform.anchoredPosition.y);
+    }
+
+    private void AddEventTrigger(GameObject obj, UnityEngine.Events.UnityAction action)
+    {
+        EventTrigger trigger = obj.GetComponent<EventTrigger>();
+        if (trigger == null)
+        {
+            trigger = obj.AddComponent<EventTrigger>();
+        }
+
+        var entry = new EventTrigger.Entry
+        {
+            eventID = EventTriggerType.PointerClick
+        };
+        entry.callback.AddListener((eventData) => { action(); });
+        trigger.triggers.Add(entry);
+    }
+
+    public void JumpToPosition(float newTime)
+    {
+        isScrubbing = true;
+        SetAnimationTime(newTime);
+        scrubSlider.value = newTime; // Update the scrubber value
+        isScrubbing = false;
+        
+    }
+
+    // Public methods for the UnityEvent system
+    public void JumpToBackswingStart() { JumpToPosition(0.0f * animationLength); }
+    public void JumpToDownswingStart() { JumpToPosition(0.46f * animationLength); }
+    public void JumpToFollowThrough() { JumpToPosition(0.625f * animationLength); }
+    public void JumpToFinish() { JumpToPosition(0.99f * animationLength); }
+
+    private void ShowGoodJobText()
+    {
+        goodJobText.SetActive(true);
+        StartCoroutine(HideGoodJobTextAfterDelay(3.0f));
+    }
+
+    private IEnumerator HideGoodJobTextAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        goodJobText.SetActive(false);
     }
 }

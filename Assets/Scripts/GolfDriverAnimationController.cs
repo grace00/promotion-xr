@@ -16,13 +16,20 @@ public class AnimationController : MonoBehaviour
     public Color selectedColor = Color.green; // Color to indicate the selected button
     public Color defaultColor = Color.white; // Default color of the button text
     public float normalSpeed = 1.0f; // Speed for Normal
-    public float slowSpeed = 0.5f; // Speed for Slow
-    public float slowestSpeed = 0.25f; // Speed for Slowest
+    public float slowSpeed = 0.25f; // Speed for Slow
+    public float slowestSpeed = 0.1f; // Speed for Slowest
     private float animationLength; // Length of the animation
     private bool isScrubbing = false; // To track if the user is scrubbing
     private bool isPlaying = false; // To track if the animation is playing
     private float currentSpeed = 1.0f; // Store the current speed
     private int animationStateHash; // Hash of the animation state
+
+    // References to the bookmark indicators (buttons)
+    public Button backswingStartIndicator;
+    public Button downswingStartIndicator;
+    public Button impactIndicator;
+    public Button followThroughIndicator;
+    public Button finishIndicator;
 
     void Start()
     {
@@ -46,6 +53,19 @@ public class AnimationController : MonoBehaviour
 
         // Set the animation to not loop
         animator.runtimeAnimatorController.animationClips[0].wrapMode = WrapMode.Once;
+
+        // Position and add listeners to bookmark indicators
+        PositionIndicator(backswingStartIndicator, 0.0f);
+        PositionIndicator(downswingStartIndicator, 0.27f);
+        PositionIndicator(impactIndicator, 0.59f);
+        PositionIndicator(followThroughIndicator, 0.625f);
+        PositionIndicator(finishIndicator, 1.0f);
+
+        backswingStartIndicator.onClick.AddListener(() => JumpToPosition(0f * animationLength));
+        downswingStartIndicator.onClick.AddListener(() => JumpToPosition(0.27f * animationLength));
+        impactIndicator.onClick.AddListener(() => JumpToPosition(0.59f * animationLength));
+        followThroughIndicator.onClick.AddListener(() => JumpToPosition(0.625f * animationLength));
+        finishIndicator.onClick.AddListener(() => JumpToPosition(animationLength));
     }
 
     void Update()
@@ -100,10 +120,13 @@ public class AnimationController : MonoBehaviour
 
     public void OnScrubSliderChanged(float value)
     {
-        Debug.Log("OnScrubSliderChanged called with value: " + value);
-        isScrubbing = true;
-        SetAnimationTime(value);
-        isScrubbing = false;
+        if (!isScrubbing)
+        {
+            Debug.Log("OnScrubSliderChanged called with value: " + value);
+            isScrubbing = true;
+            SetAnimationTime(value);
+            isScrubbing = false;
+        }
     }
 
     public void SetAnimationTime(float newTime)
@@ -167,5 +190,22 @@ public class AnimationController : MonoBehaviour
             buttonText.text = "Play";
         }
         Debug.Log("Button text updated to: " + buttonText.text);
+    }
+
+    private void PositionIndicator(Button indicator, float normalizedTime)
+    {
+        float scrubWidth = scrubSlider.GetComponent<RectTransform>().rect.width;
+        float xPos = scrubWidth * normalizedTime;
+        RectTransform rectTransform = indicator.GetComponent<RectTransform>();
+        rectTransform.anchoredPosition = new Vector2(xPos, rectTransform.anchoredPosition.y);
+    }
+
+    private void JumpToPosition(float newTime)
+    {
+        Debug.Log("JumpToPosition called with newTime: " + newTime);
+        isScrubbing = true;
+        SetAnimationTime(newTime);
+        scrubSlider.value = newTime; // Update the scrubber value
+        isScrubbing = false;
     }
 }
